@@ -1,4 +1,4 @@
-module initializr
+module github.com/gota33/initializr
 
 go 1.16
 

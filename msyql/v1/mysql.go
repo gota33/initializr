@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-	"initializr"
+	"github.com/gota33/initializr"
 )
 
 type Options struct {

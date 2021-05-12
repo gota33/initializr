@@ -4,7 +4,7 @@ import (
 	"log"
 
 	"github.com/go-redis/redis/v8"
-	"initializr"
+	"github.com/gota33/initializr"
 )
 
 func New(src initializr.Resource, key string) (rc *redis.Client, close func(), err error) {

@@ -5,8 +5,8 @@ import (
 	"log"
 
 	sls "github.com/GotaX/logrus-aliyun-log-hook"
+	"github.com/gota33/initializr"
 	"github.com/sirupsen/logrus"
-	"initializr"
 )
 
 type Options struct {

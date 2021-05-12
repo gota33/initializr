@@ -13,12 +13,12 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
-	"server/setup"
-	fiber2 "server/setup/fiber/v1"
+	"github.com/gota33/initializr"
+	fiber2 "github.com/gota33/initializr/fiber/v2"
 )
 
 func main() {
-	ctx, cancel := setup.NewGracefulContext()
+	ctx, cancel := initializr.GracefulContext()
 	defer cancel()
 
 	server, listen, shutdown := fiber2.New(":8080")
@@ -27,7 +27,7 @@ func main() {
 		return c.SendString("Hello")
 	})
 
-	if err := setup.Run(ctx, listen, shutdown); err != nil {
+	if err := initializr.Run(ctx, listen, shutdown); err != nil {
 		log.Fatalf("Exit with error: %v", err)
 	}
 }

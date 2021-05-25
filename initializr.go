@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 )
 
 var (
@@ -24,8 +27,66 @@ var (
 	}
 )
 
+type DurationStr time.Duration
+
+func (v *DurationStr) UnmarshalJSON(data []byte) (err error) {
+	var (
+		str string
+		dur time.Duration
+	)
+	if err = json.Unmarshal(data, &str); err != nil {
+		return
+	}
+	if dur, err = time.ParseDuration(str); err != nil {
+		return
+	}
+	*v = DurationStr(dur)
+	return
+}
+
+type Int64Value int64
+
+func (v *Int64Value) UnmarshalJSON(data []byte) (err error) {
+	var (
+		num json.Number
+		d   int64
+	)
+	if err = json.Unmarshal(data, &num); err != nil {
+		return
+	}
+	if d, err = num.Int64(); err != nil {
+		return
+	}
+	*v = Int64Value(d)
+	return
+}
+
+type Float64Value float64
+
+func (v *Float64Value) UnmarshalJSON(data []byte) (err error) {
+	var (
+		num json.Number
+		d   float64
+	)
+	if err = json.Unmarshal(data, &num); err != nil {
+		return
+	}
+	if d, err = num.Float64(); err != nil {
+		return
+	}
+	*v = Float64Value(d)
+	return
+}
+
 type Resource interface {
 	Scan(key string, target interface{}) error
+	MustScan(key string, target interface{}, provide func() interface{})
+	GetString(key, defaultValue string) string
+	GetDuration(key string, defaultValue time.Duration) time.Duration
+	GetNumber(key string, defaultValue json.Number) json.Number
+	GetInt64(key string, defaultValue int64) int64
+	GetFloat64(key string, defaultValue float64) float64
+	GetBoolean(key string, defaultValue bool) bool
 }
 
 func FromJsonRemote(url string) (res Resource, err error) {
@@ -45,6 +106,57 @@ func FromJson(reader io.Reader) (res Resource, err error) {
 }
 
 type MapResource map[string]interface{}
+
+func (r MapResource) GetString(key string, defaultValue string) (v string) {
+	if err := r.Scan(key, &v); err != nil {
+		r.logError(key, defaultValue, err)
+		v = defaultValue
+	}
+	return
+}
+
+func (r MapResource) GetDuration(key string, defaultValue time.Duration) (v time.Duration) {
+	r.MustScan(key, (*DurationStr)(&v), func() interface{} { return defaultValue })
+	return
+}
+
+func (r MapResource) GetNumber(key string, defaultValue json.Number) (v json.Number) {
+	r.MustScan(key, &v, func() interface{} { return defaultValue })
+	return
+}
+
+func (r MapResource) GetInt64(key string, defaultValue int64) (v int64) {
+	r.MustScan(key, (*Int64Value)(&v), func() interface{} { return defaultValue })
+	return
+}
+
+func (r MapResource) GetFloat64(key string, defaultValue float64) (v float64) {
+	r.MustScan(key, (*Float64Value)(&v), func() interface{} { return defaultValue })
+	return
+}
+
+func (r MapResource) GetBoolean(key string, defaultValue bool) (v bool) {
+	r.MustScan(key, &v, func() interface{} { return defaultValue })
+	return
+}
+
+func (r MapResource) MustScan(key string, target interface{}, provider func() interface{}) {
+	err := r.Scan(key, target)
+	if err == nil {
+		return
+	}
+
+	if provider == nil {
+		log.Panicf("MustScan panic: %v", err)
+	}
+
+	defaultValue := provider()
+	r.logError(key, defaultValue, err)
+
+	d := reflect.ValueOf(target).Elem()
+	v := reflect.ValueOf(defaultValue)
+	d.Set(v)
+}
 
 func (r MapResource) Scan(key string, target interface{}) (err error) {
 	var (
@@ -76,6 +188,10 @@ func (r MapResource) get(sections []string) (out interface{}, ok bool) {
 		}
 	}
 	return
+}
+
+func (r MapResource) logError(key string, defaultValue interface{}, err error) {
+	log.Printf("Use default %s %+v, because %s", key, defaultValue, err)
 }
 
 func GracefulContext() (context.Context, func()) {

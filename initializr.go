@@ -16,8 +16,12 @@ import (
 	"time"
 )
 
+const (
+	DefaultVersion = "dev"
+)
+
 var (
-	Version  = "dev"
+	Version  = DefaultVersion
 	LogExtra = map[string]string{"version": Version}
 
 	graceful struct {
@@ -26,6 +30,8 @@ var (
 		Cancel func()
 	}
 )
+
+func IsDev() bool { return Version == DefaultVersion }
 
 type DurationStr time.Duration
 

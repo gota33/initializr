@@ -12,21 +12,36 @@ import (
 
 type Options struct {
 	mysql.Config
-	Loc          LocationString // Location for time.Time values
-	Timeout      DurationString // Dial timeout
-	ReadTimeout  DurationString // I/O read timeout
-	WriteTimeout DurationString // I/O write timeout
+	Loc          LocationString         // Location for time.Time values
+	Timeout      initializr.DurationStr // Dial timeout
+	ReadTimeout  initializr.DurationStr // I/O read timeout
+	WriteTimeout initializr.DurationStr // I/O write timeout
 }
 
-func New(res initializr.Resource, key string) (db *sql.DB, close func(), err error) {
-	var opts Options
-	if err = res.Scan(key, &opts); err != nil {
+func New(res initializr.Resource, key string, defaultProvider func() (*sql.DB, func())) (db *sql.DB, close func()) {
+	onError := func(err error) (db *sql.DB, close func()) {
+		if defaultProvider != nil {
+			db, close = defaultProvider()
+		}
+		if db == nil || close == nil {
+			log.Panicf("MySQL init error: %s", err)
+		} else {
+			log.Printf("MySQL use default, cause: %s", err)
+		}
 		return
+	}
+
+	var (
+		opts Options
+		err  error
+	)
+	if err = res.Scan(key, &opts); err != nil {
+		return onError(err)
 	}
 
 	dsn := opts.unwrap().FormatDSN()
 	if db, err = sql.Open("mysql", dsn); err != nil {
-		return
+		return onError(err)
 	}
 
 	close = func() {
@@ -36,23 +51,6 @@ func New(res initializr.Resource, key string) (db *sql.DB, close func(), err err
 			log.Printf("Close mysql: %q", key)
 		}
 	}
-	return
-}
-
-type DurationString time.Duration
-
-func (d *DurationString) UnmarshalJSON(data []byte) (err error) {
-	var (
-		value string
-		dur   time.Duration
-	)
-	if err = json.Unmarshal(data, &value); err != nil {
-		return
-	}
-	if dur, err = time.ParseDuration(value); err != nil {
-		return
-	}
-	*d = DurationString(dur)
 	return
 }
 

@@ -29,8 +29,12 @@ var (
 	}
 )
 
-func New(addr string) (server *fiber.App, listen func() error, shutdown func()) {
-	server = fiber.New(DefaultConfig)
+func New(addr string, configs ...fiber.Config) (server *fiber.App, listen func() error, shutdown func()) {
+	if len(configs) == 0 {
+		configs = []fiber.Config{DefaultConfig}
+	}
+
+	server = fiber.New(configs...)
 	UseAll(server)
 
 	listen = func() error {

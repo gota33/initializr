@@ -11,6 +11,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// TODO: move to inner scope
+
 var Extra = map[string]interface{}{
 	initializr.ServiceKey: &initializr.Service,
 	initializr.VersionKey: &initializr.Version,

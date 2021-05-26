@@ -2,6 +2,7 @@ package logrus
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	sls "github.com/GotaX/logrus-aliyun-log-hook"
@@ -10,9 +11,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var Extra = map[string]string{
-	initializr.ServiceKey: initializr.Service,
-	initializr.VersionKey: initializr.Version,
+var Extra = map[string]interface{}{
+	initializr.ServiceKey: &initializr.Service,
+	initializr.VersionKey: &initializr.Version,
 }
 
 type Options struct {
@@ -59,6 +60,11 @@ func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown f
 	shutdown = func() {}
 
 	if !initializr.IsDev() {
+		extra := make(map[string]string, len(Extra))
+		for k, v := range Extra {
+			extra[k] = fmt.Sprintf("%s", v)
+		}
+
 		c := sls.Config{
 			Endpoint:     opt.Endpoint,
 			AccessKey:    opt.Key,
@@ -66,7 +72,7 @@ func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown f
 			Project:      opt.Project,
 			Store:        opt.Name,
 			Topic:        opt.Topic,
-			Extra:        Extra,
+			Extra:        extra,
 		}
 
 		var hook *sls.Hook

@@ -60,10 +60,6 @@ func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown f
 	shutdown = func() {}
 
 	if !initializr.IsDev() {
-		extra := make(map[string]string, len(Extra))
-		for k, v := range Extra {
-			extra[k] = fmt.Sprintf("%s", v)
-		}
 
 		c := sls.Config{
 			Endpoint:     opt.Endpoint,
@@ -72,7 +68,7 @@ func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown f
 			Project:      opt.Project,
 			Store:        opt.Name,
 			Topic:        opt.Topic,
-			Extra:        extra,
+			Extra:        extraSnapshot(),
 		}
 
 		var hook *sls.Hook
@@ -87,6 +83,23 @@ func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown f
 		}
 
 		logger.AddHook(hook)
+	}
+	return
+}
+
+func extraSnapshot() (extra map[string]string) {
+	extra = make(map[string]string, len(Extra))
+	for k, ptr := range Extra {
+		switch v := ptr.(type) {
+		case nil:
+			// ignore
+		case string:
+			extra[k] = v
+		case *string:
+			extra[k] = *v
+		default:
+			extra[k] = fmt.Sprintf("%v", v)
+		}
 	}
 	return
 }

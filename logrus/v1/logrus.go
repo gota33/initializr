@@ -6,68 +6,41 @@ import (
 
 	sls "github.com/GotaX/logrus-aliyun-log-hook"
 	"github.com/gota33/initializr"
+	"github.com/gota33/initializr/internal"
 	"github.com/sirupsen/logrus"
 )
 
+var Extra = map[string]string{
+	initializr.ServiceKey: initializr.Service,
+	initializr.VersionKey: initializr.Version,
+}
+
 type Options struct {
 	Level    LevelString `json:"level"`
+	Color    bool        `json:"color"`
+	Default  bool        `json:"default"`
 	Endpoint string      `json:"endpoint"`
 	Key      string      `json:"key"`
 	Secret   string      `json:"secret"`
 	Project  string      `json:"project"`
 	Name     string      `json:"name"`
 	Topic    string      `json:"topic"`
-	Extra    []string    `json:"extra"`
-	Default  bool        `json:"default"`
-	Async    bool        `json:"async"`
-	Color    bool        `json:"color"`
 }
 
-func New(res initializr.Resource, key string, defaultProvider func() (*logrus.Logger, func())) (logger *logrus.Logger, close func()) {
-	onError := func(err error) (logger *logrus.Logger, close func()) {
-		if defaultProvider != nil {
-			logger, close = defaultProvider()
-		}
-		if logger == nil || close == nil {
-			log.Panicf("Logrus init error: %s", err)
-		} else {
-			log.Printf("Logrus use default, cause: %s", err)
-		}
-		return
+type Provider func() (logger *logrus.Logger, shutdown func())
+
+func MustNew(res initializr.Resource, key string, defaultProvider Provider) (logger *logrus.Logger, shutdown func()) {
+	logger, shutdown, err := New(res, key)
+	if err != nil {
+		internal.OnError("Logrus", err, defaultProvider, &logger, &shutdown)
 	}
+	return
+}
 
-	var (
-		opt  Options
-		hook *sls.Hook
-		err  error
-	)
-
-	if !initializr.IsDev() {
-		if err = res.Scan(key, &opt); err != nil {
-			return onError(err)
-		}
-
-		c := sls.Config{
-			Endpoint:     opt.Endpoint,
-			AccessKey:    opt.Key,
-			AccessSecret: opt.Secret,
-			Project:      opt.Project,
-			Store:        opt.Name,
-			Topic:        opt.Topic,
-			Extra:        initializr.LogExtra,
-		}
-
-		if hook, err = sls.New(c); err != nil {
-			return onError(err)
-		}
-
-		close = func() {
-			if err := hook.Close(); err != nil {
-				log.Printf("Fail to close sls: %q", key)
-			}
-		}
-	} else {
-		close = func() {}
+func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown func(), err error) {
+	var opt Options
+	if err = res.Scan(key, &opt); err != nil {
+		return
 	}
 
 	if opt.Default {
@@ -76,16 +49,39 @@ func New(res initializr.Resource, key string, defaultProvider func() (*logrus.Lo
 		logger = logrus.New()
 	}
 
-	if hook != nil {
-		logger.AddHook(hook)
-	}
-
 	logger.SetLevel(logrus.Level(opt.Level))
 	logger.SetFormatter(&logrus.TextFormatter{
 		ForceColors:     opt.Color,
 		FullTimestamp:   true,
 		TimestampFormat: "15:04:05",
 	})
+
+	shutdown = func() {}
+
+	if !initializr.IsDev() {
+		c := sls.Config{
+			Endpoint:     opt.Endpoint,
+			AccessKey:    opt.Key,
+			AccessSecret: opt.Secret,
+			Project:      opt.Project,
+			Store:        opt.Name,
+			Topic:        opt.Topic,
+			Extra:        Extra,
+		}
+
+		var hook *sls.Hook
+		if hook, err = sls.New(c); err != nil {
+			return
+		}
+
+		shutdown = func() {
+			if err := hook.Close(); err != nil {
+				log.Printf("Fail to close sls: %q", key)
+			}
+		}
+
+		logger.AddHook(hook)
+	}
 	return
 }
 

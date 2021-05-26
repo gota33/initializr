@@ -5,27 +5,23 @@ import (
 
 	"github.com/go-redis/redis/v7"
 	"github.com/gota33/initializr"
+	"github.com/gota33/initializr/internal"
 )
 
-func New(src initializr.Resource, key string, defaultProvider func() (*redis.Client, func())) (rc *redis.Client, close func()) {
-	onError := func(err error) (db *redis.Client, close func()) {
-		if defaultProvider != nil {
-			db, close = defaultProvider()
-		}
-		if db == nil || close == nil {
-			log.Panicf("Redis init error: %s", err)
-		} else {
-			log.Printf("Redis use default, cause: %s", err)
-		}
-		return
-	}
+type Provider func() (*redis.Client, func())
 
-	var (
-		opt redis.Options
-		err error
-	)
+func MustNew(src initializr.Resource, key string, defaultProvider Provider) (rc *redis.Client, shutdown func()) {
+	rc, shutdown, err := New(src, key)
+	if err != nil {
+		internal.OnError("Redis", err, defaultProvider, &rc, &shutdown)
+	}
+	return
+}
+
+func New(src initializr.Resource, key string) (rc *redis.Client, close func(), err error) {
+	var opt redis.Options
 	if err = src.Scan(key, &opt); err != nil {
-		return onError(err)
+		return
 	}
 
 	rc = redis.NewClient(&opt)

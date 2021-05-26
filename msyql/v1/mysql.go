@@ -8,47 +8,43 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 	"github.com/gota33/initializr"
+	"github.com/gota33/initializr/internal"
 )
 
 type Options struct {
 	mysql.Config
-	Loc          LocationString         // Location for time.Time values
-	Timeout      initializr.DurationStr // Dial timeout
-	ReadTimeout  initializr.DurationStr // I/O read timeout
-	WriteTimeout initializr.DurationStr // I/O write timeout
+	Loc          LocationString       // Location for time.Time values
+	Timeout      internal.DurationStr // Dial timeout
+	ReadTimeout  internal.DurationStr // I/O read timeout
+	WriteTimeout internal.DurationStr // I/O write timeout
 }
 
-func New(res initializr.Resource, key string, defaultProvider func() (*sql.DB, func())) (db *sql.DB, close func()) {
-	onError := func(err error) (db *sql.DB, close func()) {
-		if defaultProvider != nil {
-			db, close = defaultProvider()
-		}
-		if db == nil || close == nil {
-			log.Panicf("MySQL init error: %s", err)
-		} else {
-			log.Printf("MySQL use default, cause: %s", err)
-		}
-		return
-	}
+type Provider func() (*sql.DB, func())
 
-	var (
-		opts Options
-		err  error
-	)
+func MustNew(res initializr.Resource, key string, defaultProvider Provider) (db *sql.DB, shutdown func()) {
+	db, shutdown, err := New(res, key)
+	if err != nil {
+		internal.OnError("MySQL", err, defaultProvider, &db, &shutdown)
+	}
+	return
+}
+
+func New(res initializr.Resource, key string) (db *sql.DB, close func(), err error) {
+	var opts Options
 	if err = res.Scan(key, &opts); err != nil {
-		return onError(err)
+		return
 	}
 
 	dsn := opts.unwrap().FormatDSN()
 	if db, err = sql.Open("mysql", dsn); err != nil {
-		return onError(err)
+		return
 	}
 
 	close = func() {
 		if err := db.Close(); err != nil {
-			log.Printf("Fail to close DB: %q", key)
+			log.Printf("Fail to close MySQL: %q", key)
 		} else {
-			log.Printf("Close mysql: %q", key)
+			log.Printf("Close MySQL: %q", key)
 		}
 	}
 	return

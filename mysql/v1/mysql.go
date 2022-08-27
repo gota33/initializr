@@ -21,7 +21,7 @@ type Options struct {
 
 type Provider func() (*sql.DB, func())
 
-func MustNew(res initializr.Resource, key string, defaultProvider Provider) (db *sql.DB, shutdown func()) {
+func MustNew(res initializr.Configuration, key string, defaultProvider Provider) (db *sql.DB, shutdown func()) {
 	db, shutdown, err := New(res, key)
 	if err != nil {
 		internal.OnError("MySQL", err, defaultProvider, &db, &shutdown)
@@ -29,7 +29,7 @@ func MustNew(res initializr.Resource, key string, defaultProvider Provider) (db 
 	return
 }
 
-func New(res initializr.Resource, key string) (db *sql.DB, close func(), err error) {
+func New(res initializr.Configuration, key string) (db *sql.DB, close func(), err error) {
 	var opts Options
 	if err = res.Scan(key, &opts); err != nil {
 		return

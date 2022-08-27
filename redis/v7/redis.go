@@ -10,7 +10,7 @@ import (
 
 type Provider func() (*redis.Client, func())
 
-func MustNew(src initializr.Resource, key string, defaultProvider Provider) (rc *redis.Client, shutdown func()) {
+func MustNew(src initializr.Configuration, key string, defaultProvider Provider) (rc *redis.Client, shutdown func()) {
 	rc, shutdown, err := New(src, key)
 	if err != nil {
 		internal.OnError("Redis", err, defaultProvider, &rc, &shutdown)
@@ -18,7 +18,7 @@ func MustNew(src initializr.Resource, key string, defaultProvider Provider) (rc 
 	return
 }
 
-func New(src initializr.Resource, key string) (rc *redis.Client, close func(), err error) {
+func New(src initializr.Configuration, key string) (rc *redis.Client, close func(), err error) {
 	var opt redis.Options
 	if err = src.Scan(key, &opt); err != nil {
 		return

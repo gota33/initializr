@@ -32,7 +32,7 @@ type Options struct {
 
 type Provider func() (logger *logrus.Logger, shutdown func())
 
-func MustNew(res initializr.Resource, key string, defaultProvider Provider) (logger *logrus.Logger, shutdown func()) {
+func MustNew(res initializr.Configuration, key string, defaultProvider Provider) (logger *logrus.Logger, shutdown func()) {
 	logger, shutdown, err := New(res, key)
 	if err != nil {
 		internal.OnError("Logrus", err, defaultProvider, &logger, &shutdown)
@@ -40,7 +40,7 @@ func MustNew(res initializr.Resource, key string, defaultProvider Provider) (log
 	return
 }
 
-func New(res initializr.Resource, key string) (logger *logrus.Logger, shutdown func(), err error) {
+func New(res initializr.Configuration, key string) (logger *logrus.Logger, shutdown func(), err error) {
 	var opt Options
 	if err = res.Scan(key, &opt); err != nil {
 		return

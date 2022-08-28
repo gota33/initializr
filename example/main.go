@@ -1,23 +1,6 @@
 package example
 
-import (
-	"context"
-	"io"
-)
-
+//go:generate initializr --name=mysql
 func main() {
 
-}
-
-type MockProvider struct {
-}
-
-func (p MockProvider) Hash() string {
-	// TODO implement me
-	panic("implement me")
-}
-
-func (p MockProvider) Provide(ctx context.Context) (connection io.Closer, err error) {
-	// TODO implement me
-	panic("implement me")
 }

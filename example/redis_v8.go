@@ -1,0 +1,56 @@
+package example
+
+import (
+	"context"
+	"crypto/md5"
+	"fmt"
+	"io"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/gota33/initializr"
+)
+
+type RedisV8 struct {
+	Host     string
+	Port     int64
+	Username string
+	Password string
+	DB       int64
+}
+
+func NewRedisV8(c initializr.Configuration) RedisV8 {
+	const (
+		keyHost     = "host"
+		keyPort     = "port"
+		keyUsername = "username"
+		keyPassword = "password"
+		keyDB       = "db"
+	)
+	return RedisV8{
+		Host:     c.Get(keyHost).AsString(""),
+		Port:     c.Get(keyPort).AsInt64(6379),
+		Username: c.Get(keyUsername).AsString(""),
+		Password: c.Get(keyPassword).AsString(""),
+		DB:       c.Get(keyDB).AsInt64(1),
+	}
+}
+
+func (p RedisV8) Hash() string {
+	w := md5.New()
+	_, _ = fmt.Fprint(w, p.Host, p.Port, p.Username, p.Password, p.DB)
+	return fmt.Sprintf("%x", w.Sum(nil))
+}
+
+func (p RedisV8) Provide(ctx context.Context) (connection io.Closer, err error) {
+	client := redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%d", p.Host, p.Port),
+		Username: p.Username,
+		Password: p.Password,
+		DB:       int(p.DB),
+	})
+
+	if err = client.Ping(ctx).Err(); err != nil {
+		return
+	}
+	return client, nil
+}

@@ -1,4 +1,4 @@
-package initializr
+package resource
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 module github.com/gota33/initializr
 
-go 1.18
+go 1.19
 
 require (
 	github.com/GotaX/logrus-aliyun-log-hook v1.0.0

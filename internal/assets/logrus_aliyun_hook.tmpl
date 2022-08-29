@@ -1,0 +1,83 @@
+package {{ .PackageName }}
+
+import (
+	"context"
+	"crypto/md5"
+	"fmt"
+	"io"
+
+	sls "github.com/GotaX/logrus-aliyun-log-hook"
+	"github.com/gota33/initializr"
+	"github.com/sirupsen/logrus"
+)
+
+type LogrusAliyunHook struct {
+	Color    bool
+	Level    string
+	Endpoint string
+	AppKey   string
+	Secret   string
+	Project  string
+	Store    string
+	Topic    string
+}
+
+func NewLogrusAliyunHook(c initializr.Configuration) LogrusAliyunHook {
+	const (
+		keyColor    = "color"
+		keyLevel    = "level"
+		keyEndpoint = "endpoint"
+		keyAppKey   = "key"
+		keySecret   = "secret"
+		keyProject  = "project"
+		keyStore    = "store"
+		keyTopic    = "topic"
+	)
+	return LogrusAliyunHook{
+		Color:    c.Get(keyColor).AsBoolean(false),
+		Level:    c.Get(keyLevel).AsString("info"),
+		Endpoint: c.Get(keyEndpoint).AsString(""),
+		AppKey:   c.Get(keyAppKey).AsString(""),
+		Secret:   c.Get(keySecret).AsString(""),
+		Project:  c.Get(keyProject).AsString(""),
+		Store:    c.Get(keyStore).AsString(""),
+		Topic:    c.Get(keyTopic).AsString(""),
+	}
+}
+
+func (p LogrusAliyunHook) Unwrap(c io.Closer) *sls.Hook { return c.(*sls.Hook) }
+
+func (p LogrusAliyunHook) Hash() string {
+	w := md5.New()
+	_, _ = fmt.Fprint(w, p.Level, p.Endpoint, p.AppKey, p.Secret, p.Project, p.Store, p.Store)
+	return fmt.Sprintf("%x", w.Sum(nil))
+}
+
+func (p LogrusAliyunHook) Provide(ctx context.Context) (connection io.Closer, err error) {
+	c := sls.Config{
+		Endpoint:     p.Endpoint,
+		AccessKey:    p.AppKey,
+		AccessSecret: p.Secret,
+		Project:      p.Project,
+		Store:        p.Store,
+		Topic:        p.Topic,
+		Extra:        make(map[string]string, 0),
+	}
+	return sls.New(c)
+}
+
+func (p LogrusAliyunHook) Setup(logger *logrus.Logger, hook io.Closer) (err error) {
+	lvl, err := logrus.ParseLevel(p.Level)
+	if err != nil {
+		return
+	}
+
+	logger.AddHook(p.Unwrap(hook))
+	logger.SetLevel(lvl)
+	logger.SetFormatter(&logrus.TextFormatter{
+		ForceColors:     p.Color,
+		FullTimestamp:   true,
+		TimestampFormat: "15:04:05",
+	})
+	return
+}

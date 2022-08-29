@@ -37,7 +37,7 @@ func main() {
 
 	for _, subName := range strings.Split(baseName, ",") {
 		if err = generate(subName, workdir, packageName, tmpl); err != nil {
-			return
+			log.Fatal(err)
 		}
 	}
 }

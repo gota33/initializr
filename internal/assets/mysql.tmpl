@@ -49,6 +49,8 @@ func NewMySql(c initializr.Configuration) MySQL {
 	}
 }
 
+func (p MySQL) Unwrap(c io.Closer) *sql.DB { return c.(*sql.DB) }
+
 func (p MySQL) Hash() string {
 	w := md5.New()
 	_, _ = fmt.Fprint(w, p.Protocol, p.Host, p.Database, p.Port, p.Username, p.Params, p.MaxIdle, p.MaxOpen)

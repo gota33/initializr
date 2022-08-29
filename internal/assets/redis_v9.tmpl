@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/go-redis/redis/v8"
+	"github.com/go-redis/redis/v9"
 	"github.com/gota33/initializr"
 )
 
-type RedisV8 struct {
+type RedisV9 struct {
 	Host     string
 	Port     int64
 	Username string
@@ -18,7 +18,7 @@ type RedisV8 struct {
 	DB       int64
 }
 
-func NewRedisV8(c initializr.Configuration) RedisV8 {
+func NewRedisV9(c initializr.Configuration) RedisV9 {
 	const (
 		keyHost     = "host"
 		keyPort     = "port"
@@ -26,7 +26,7 @@ func NewRedisV8(c initializr.Configuration) RedisV8 {
 		keyPassword = "password"
 		keyDB       = "db"
 	)
-	return RedisV8{
+	return RedisV9{
 		Host:     c.Get(keyHost).AsString(""),
 		Port:     c.Get(keyPort).AsInt64(6379),
 		Username: c.Get(keyUsername).AsString(""),
@@ -35,15 +35,15 @@ func NewRedisV8(c initializr.Configuration) RedisV8 {
 	}
 }
 
-func (p RedisV8) Unwrap(c io.Closer) *redis.Client { return c.(*redis.Client) }
+func (p RedisV9) Unwrap(c io.Closer) *redis.Client { return c.(*redis.Client) }
 
-func (p RedisV8) Hash() string {
+func (p RedisV9) Hash() string {
 	w := md5.New()
 	_, _ = fmt.Fprint(w, p.Host, p.Port, p.Username, p.Password, p.DB)
 	return fmt.Sprintf("%x", w.Sum(nil))
 }
 
-func (p RedisV8) Provide(ctx context.Context) (connection io.Closer, err error) {
+func (p RedisV9) Provide(ctx context.Context) (connection io.Closer, err error) {
 	client := redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", p.Host, p.Port),
 		Username: p.Username,

@@ -2,9 +2,6 @@ package {{ .PackageName }}
 
 import (
 	"context"
-	"crypto/md5"
-	"fmt"
-	"io"
 
 	sls "github.com/GotaX/logrus-aliyun-log-hook"
 	"github.com/gota33/initializr"
@@ -45,15 +42,7 @@ func NewLogrusAliyunHook(c initializr.Configuration) LogrusAliyunHook {
 	}
 }
 
-func (p LogrusAliyunHook) Unwrap(c io.Closer) *sls.Hook { return c.(*sls.Hook) }
-
-func (p LogrusAliyunHook) Hash() string {
-	w := md5.New()
-	_, _ = fmt.Fprint(w, p.Level, p.Endpoint, p.AppKey, p.Secret, p.Project, p.Store, p.Store)
-	return fmt.Sprintf("%x", w.Sum(nil))
-}
-
-func (p LogrusAliyunHook) Provide(ctx context.Context) (connection io.Closer, err error) {
+func (p LogrusAliyunHook) New(ctx context.Context) (hook *sls.Hook, err error) {
 	c := sls.Config{
 		Endpoint:     p.Endpoint,
 		AccessKey:    p.AppKey,
@@ -66,13 +55,13 @@ func (p LogrusAliyunHook) Provide(ctx context.Context) (connection io.Closer, er
 	return sls.New(c)
 }
 
-func (p LogrusAliyunHook) Setup(logger *logrus.Logger, hook io.Closer) (err error) {
+func (p LogrusAliyunHook) Setup(logger *logrus.Logger, hook *sls.Hook) (err error) {
 	lvl, err := logrus.ParseLevel(p.Level)
 	if err != nil {
 		return
 	}
 
-	logger.AddHook(p.Unwrap(hook))
+	logger.AddHook(hook)
 	logger.SetLevel(lvl)
 	logger.SetFormatter(&logrus.TextFormatter{
 		ForceColors:     p.Color,

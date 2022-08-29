@@ -2,10 +2,8 @@ package {{ .PackageName }}
 
 import (
 	"context"
-	"crypto/md5"
 	"database/sql"
 	"fmt"
-	"io"
 	"net/url"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -49,20 +47,7 @@ func NewMySql(c initializr.Configuration) MySQL {
 	}
 }
 
-func (p MySQL) Unwrap(c io.Closer) *sql.DB { return c.(*sql.DB) }
-
-func (p MySQL) Hash() string {
-	w := md5.New()
-	_, _ = fmt.Fprint(w, p.Protocol, p.Host, p.Database, p.Port, p.Username, p.Params, p.MaxIdle, p.MaxOpen)
-	for k, v := range p.Params {
-		_, _ = fmt.Fprint(w, k, v)
-	}
-	return fmt.Sprintf("%x", w.Sum(nil))
-}
-
-func (p MySQL) Provide(ctx context.Context) (connection io.Closer, err error) {
-	var db *sql.DB
-
+func (p MySQL) New(ctx context.Context) (db *sql.DB, err error) {
 	dsn := fmt.Sprintf("%s:%s@%s(%s:%d)/%s?%s",
 		p.Username, p.Password, p.Protocol, p.Host, p.Port, p.Database, p.Params.Encode())
 
@@ -79,5 +64,5 @@ func (p MySQL) Provide(ctx context.Context) (connection io.Closer, err error) {
 	if n := p.MaxOpen; n > 0 {
 		db.SetMaxOpenConns(int(n))
 	}
-	return db, nil
+	return
 }

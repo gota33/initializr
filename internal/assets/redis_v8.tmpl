@@ -2,9 +2,7 @@ package {{ .PackageName }}
 
 import (
 	"context"
-	"crypto/md5"
 	"fmt"
-	"io"
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gota33/initializr"
@@ -35,24 +33,14 @@ func NewRedisV8(c initializr.Configuration) RedisV8 {
 	}
 }
 
-func (p RedisV8) Unwrap(c io.Closer) *redis.Client { return c.(*redis.Client) }
-
-func (p RedisV8) Hash() string {
-	w := md5.New()
-	_, _ = fmt.Fprint(w, p.Host, p.Port, p.Username, p.Password, p.DB)
-	return fmt.Sprintf("%x", w.Sum(nil))
-}
-
-func (p RedisV8) Provide(ctx context.Context) (connection io.Closer, err error) {
-	client := redis.NewClient(&redis.Options{
+func (p RedisV8) New(ctx context.Context) (client *redis.Client, err error) {
+	client = redis.NewClient(&redis.Options{
 		Addr:     fmt.Sprintf("%s:%d", p.Host, p.Port),
 		Username: p.Username,
 		Password: p.Password,
 		DB:       int(p.DB),
 	})
 
-	if err = client.Ping(ctx).Err(); err != nil {
-		return
-	}
-	return client, nil
+	err = client.Ping(ctx).Err()
+	return
 }

@@ -69,10 +69,7 @@ func (n jsonNode) raw() gjson.Result {
 }
 
 func (n jsonNode) Get(key string) Configuration {
-	if node, ok := n.get(key); ok {
-		return jsonNode(node)
-	}
-	return nil
+	return jsonNode(n.raw().Get(key))
 }
 
 func (n jsonNode) Exists() bool {

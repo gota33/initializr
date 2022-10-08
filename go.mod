@@ -1,6 +1,6 @@
 module github.com/gota33/initializr
 
-go 1.17
+go 1.19
 
 require github.com/tidwall/gjson v1.14.3
 

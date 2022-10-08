@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
 	"text/template"
 
 	"github.com/gota33/initializr/internal/assets"
+	"github.com/gota33/initializr/internal/log"
 )
 
 var (

@@ -1,0 +1,138 @@
+package {{.PackageName}}
+
+import (
+	"bytes"
+	"context"
+	_ "embed"
+	"fmt"
+	"log"
+	"os"
+	"unicode"
+
+	sls "github.com/GotaX/logrus-aliyun-log-hook"
+	"github.com/gota33/initializr"
+	"github.com/sirupsen/logrus"
+	. "github.com/urfave/cli/v2"
+)
+
+const EnvPrefix = "APP_"
+
+var (
+	//go:embed config.json
+	defaultConfig []byte
+)
+
+var (
+	AppName = "{.AppName}"
+	Version = "dev"
+
+	res initializr.Configuration
+
+	flagLevel     = flagName[string]("level")
+	flagHttp      = flagName[string]("http")
+	flagConfigUrl = flagName[string]("config-url")
+
+	cli = &App{
+		Name:    AppName,
+		Version: Version,
+		Flags: []Flag{
+			&StringFlag{
+				Name:    string(flagLevel),
+				EnvVars: flagLevel.Envs(),
+				Value:   "debug",
+			},
+		},
+		Before: before,
+		Commands: []*Command{
+			{
+				Name: "server",
+				Flags: []Flag{
+					&StringFlag{
+						Name:    string(flagHttp),
+						EnvVars: flagHttp.Envs(),
+						Value:   ":8080",
+					},
+					&StringFlag{
+						Name:    string(flagConfigUrl),
+						EnvVars: flagConfigUrl.Envs(),
+						Value:   "",
+					},
+				},
+				Action: runServer,
+			},
+		},
+	}
+)
+
+type flagName[T any] string
+
+func (name flagName[T]) Get(c *Context) T {
+	return c.Value(string(name)).(T)
+}
+
+func (name flagName[T]) Envs() []string {
+	chars := []rune(EnvPrefix + name)
+	for i, c := range chars {
+		if c == '-' {
+			chars[i] = '_'
+		} else {
+			chars[i] = unicode.ToUpper(c)
+		}
+	}
+	return []string{string(chars)}
+}
+
+func before(c *Context) (err error) {
+	srvName := fmt.Sprintf("%s-%s", AppName, c.Args().Get(0))
+
+	log.Printf("%s (%s)", srvName, Version)
+
+	if res, err = loadConfig(c); err != nil {
+		return
+	}
+
+	if Version == "dev" {
+		var lvl logrus.Level
+		if lvl, err = logrus.ParseLevel(flagLevel.Get(c)); err != nil {
+			return
+		}
+		logrus.SetLevel(lvl)
+		logrus.SetFormatter(&logrus.TextFormatter{ForceColors: true})
+	} else {
+		var hook *sls.Hook
+		factory := NewLogrusAliyunHook(res.Get("log"))
+		if hook, err = factory.New(c.Context); err != nil {
+			return
+		}
+
+		defer func() {
+			if closeErr := hook.Close(); closeErr != nil {
+				log.Printf("Close log hook error: %s", closeErr.Error())
+			}
+		}()
+
+		if err = factory.Setup(logrus.StandardLogger(), hook); err != nil {
+			return
+		}
+	}
+	return
+}
+
+func loadConfig(c *Context) (res initializr.Configuration, err error) {
+	if configUrl := flagConfigUrl.Get(c); configUrl != "" {
+		res, err = initializr.FromJsonRemote(configUrl)
+	} else {
+		res, err = initializr.FromJson(bytes.NewReader(defaultConfig))
+	}
+	return
+}
+
+func runServer(c *Context) (err error) {
+	// addr := flagHttp.Get(c)
+	// TODO: Run server
+	return nil
+}
+
+func Run(ctx context.Context) (err error) {
+	return cli.RunContext(ctx, os.Args)
+}

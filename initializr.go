@@ -2,6 +2,7 @@ package initializr
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/signal"
 	"sync"
@@ -52,4 +53,18 @@ func Run(ctx context.Context, start func() error, stops ...func()) (err error) {
 		}
 	}
 	return
+}
+
+func DeferClose(ctx context.Context, name string, conn io.Closer) {
+	go func() {
+		<-ctx.Done()
+
+		if conn != nil {
+			if err := conn.Close(); err != nil {
+				log.Printf("Close connection error %q: %v", name, err)
+			} else {
+				log.Printf("Closed connection %q", name)
+			}
+		}
+	}()
 }
